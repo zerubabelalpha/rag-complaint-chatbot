@@ -19,13 +19,18 @@ rag-complaint-chatbot/
 │   ├── raw/               # Original CFPB complaints.csv
 │   └── processed/         # Filtered and cleaned data
 ├── notebooks/
-│   └── eda.ipynb          # Interactive Exploratory Data Analysis
+│   ├── eda.ipynb          # Interactive Exploratory Data Analysis
+│   └── chunk_embed_index.ipynb # RAG Pipeline (Chunking, Embedding, Indexing)
 ├── src/
 │   ├── config.py          # Project configuration and constants
 │   ├── preprocess.py      # Data cleaning and filtering logic
 │   ├── eda.py             # EDA helper functions
-│   └── ...                # RAG and Vector Store modules
-├── tests/                 # Unit and integration tests
+│   ├── chunking.py        # Text splitting and chunking logic
+│   ├── vectorstore.py     # FAISS vector store management
+│   ├── docs.py            # Document loading and processing
+│   ├── file_handling.py   # Utility functions for files
+│   └── langchain_docs.py  # LangChain document adapters
+├── tests/                 # Verification scripts
 └── requirements.txt       # Project dependencies
 ```
 
@@ -44,9 +49,14 @@ rag-complaint-chatbot/
    ```
 
 3. **Install dependencies**:
+   
+   For Windows (CPU-only):
    ```bash
+   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
    pip install -r requirements.txt
    ```
+   
+   For other systems or GPU support, refer to [pytorch.org](https://pytorch.org/).
 
 4. **Prepare Data**:
    Place the CFPB `complaints.csv` in `data/raw/`.
@@ -63,4 +73,5 @@ The preprocessing logic is contained in `src/preprocess.py` and is automatically
 Run the verification tests:
 ```bash
 python tests/verify_preprocess.py
+python tests/verify_docs.py
 ```

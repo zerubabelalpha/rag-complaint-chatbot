@@ -38,7 +38,7 @@ def create_text_splitter(
         is_separator_regex=False,
     )
     
-    print(f"✓ Created text splitter (chunk_size={chunk_size}, overlap={chunk_overlap})")
+    print(f"[OK] Created text splitter (chunk_size={chunk_size}, overlap={chunk_overlap})")
     return splitter
 
 
@@ -90,7 +90,7 @@ def chunk_documents(
     chunked_count = len(chunked_docs)
     expansion_ratio = chunked_count / original_count if original_count > 0 else 0
     
-    print(f"✓ Chunking complete:")
+    print(f"[OK] Chunking complete:")
     print(f"  Original documents: {original_count:,}")
     print(f"  After chunking: {chunked_count:,}")
     print(f"  Expansion ratio: {expansion_ratio:.2f}x")

@@ -21,6 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install -r requirements.txt
         pip install pandas numpy matplotlib seaborn
         # Add basic dependencies needed for testing preprocess.py
         # Skip heavier RAG dependencies for basic CI speed if not needed for unit tests

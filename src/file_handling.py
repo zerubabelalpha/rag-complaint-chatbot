@@ -49,15 +49,18 @@ def load_processed_data(filepath:Optional[Path]=None)->pd.DataFrame:
     if filepath is None:
         filepath = config.PROCESSED_DATA_PATH
     
-        filepath = Path(filepath)
-        
-        if not filepath.exists():
-            raise FileNotFoundError(
-                f"Processed DATA file not found at: {filepath}\n"
-                f"Please run the preprocessing eda notebook  first."
-            )
-        
-        df = pd.read_csv(filepath, low_memory=False)
-        
-        print(f"✓ Loaded {len(df):,} processed DATA from {filepath.name}")
-        return df
+    # Normalize to Path object
+    filepath = Path(filepath)
+
+    # Check if file exists and give helpful error message
+    if not filepath.exists():
+        raise FileNotFoundError(
+            f"Processed DATA file not found at: {filepath}\n"
+            f"Please run the preprocessing eda notebook  first."
+        )
+
+    # Load the CSV
+    df = pd.read_csv(filepath, low_memory=False)
+
+    print(f"✓ Loaded {len(df):,} processed DATA from {filepath.name}")
+    return df

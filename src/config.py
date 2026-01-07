@@ -17,6 +17,7 @@ PROCESSED_DATA_PATH = PROCESSED_DATA_DIR / "filtered_complaints.csv"
 
 # Vector store path 
 VECTOR_STORE_DIR = PROJECT_ROOT / "vector_store" / "faiss"
+PREBUILT_EMBEDDINGS_PATH = DATA_DIR / "complaint_embeddings.parquet"
 
 # Model cache directory
 MODELS_DIR = PROJECT_ROOT / "models" / "hf"
@@ -42,8 +43,8 @@ CHUNK_OVERLAP = 50
 
 # Number of documents to retrieve for each query
 # - More docs = more context but slower and may include noise
-# - 5 is a good starting point
-RETRIEVAL_K = 5
+# - 3 is a safer bet for small models like FLAN-T5-small (512 token limit)
+RETRIEVAL_K = 3
 
 # =============================================================================
 # HUGGINGFACE CACHE SETUP
@@ -71,20 +72,55 @@ def setup_hf_cache():
     os.environ["TRANSFORMERS_CACHE"] = str(MODELS_DIR)
     os.environ["SENTENCE_TRANSFORMERS_HOME"] = str(MODELS_DIR)
     
-    print(f"✓ HuggingFace cache set to: {MODELS_DIR}")
+    print(f"[OK] HuggingFace cache set to: {MODELS_DIR}")
 
 
+# Dataset Configuration (CFPB Complaints)
 # =============================================================================
-# DATASET CONFIGURATION (CFPB Complaints)
-# =============================================================================
 
-REQUIRED_PRODUCTS = [
+# Mapping of raw dataset product labels to standardized target categories.
+# This consolidates labels from different dataset versions into professional categories.
+
+PRODUCT_MAP = {
+    "Credit card": [
+        "Credit card",
+        "Credit card or prepaid card",
+        "Prepaid card"
+    ],
+    "Personal loan": [
+        "Consumer Loan",
+        "Payday loan",
+        "Payday loan, title loan, or personal loan",
+        "Payday loan, title loan, personal loan, or advance loan",
+        "Student loan",
+        "Vehicle loan or lease"
+    ],
+    "Savings account": [
+        "Checking or savings account",
+        "Bank account or service"
+    ],
+    "Money transfers": [
+        "Money transfers",
+        "Money transfer, virtual currency, or money service",
+        "Virtual currency"
+    ],
+    "Buy Now, Pay Later (BNPL)": [
+        "Buy Now, Pay Later (BNPL)"
+    ]
+}
+
+# The five target categories specified for inclusion in the RAG pipeline.
+TARGET_PRODUCTS = [
     "Credit card",
     "Personal loan",
-    "Buy Now, Pay Later (BNPL)",
     "Savings account",
-    "Money transfers"
+    "Money transfers",
+    "Buy Now, Pay Later (BNPL)"
 ]
+
+# Flattened list of raw labels corresponding to the target categories.
+# Used by the preprocessing pipeline for strict filtering.
+REQUIRED_PRODUCTS = [label for cat in TARGET_PRODUCTS for label in PRODUCT_MAP.get(cat, [])]
 
 # Columns that contain PII or are irrelevant and MUST be removed before embedding
 # NEVER include these in the text that gets embedded!

@@ -22,7 +22,7 @@ def load_raw_data(filepath :Optional[Path]=None)->pd.DataFrame:
     # low_memory=False prevents mixed type warnings for large files
     df = pd.read_csv(filepath, low_memory=False)
     
-    print(f"✓ Loaded {len(df):,} DATA from {filepath.name}")
+    print(f"[OK] Loaded {len(df):,} DATA from {filepath.name}")
     return df
 
 
@@ -40,7 +40,7 @@ def save_processed_data(df:pd.DataFrame,filepath:Optional[Path]=None)->Path:
     # index=False prevents adding an extra index column
     df.to_csv(filepath, index=False)
     
-    print(f"✓ Saved {len(df):,} DATA to {filepath.name}")
+    print(f"[OK] Saved {len(df):,} DATA to {filepath.name}")
     return filepath
 
 
@@ -62,5 +62,5 @@ def load_processed_data(filepath:Optional[Path]=None)->pd.DataFrame:
     # Load the CSV
     df = pd.read_csv(filepath, low_memory=False)
 
-    print(f"✓ Loaded {len(df):,} processed DATA from {filepath.name}")
+    print(f"[OK] Loaded {len(df):,} processed DATA from {filepath.name}")
     return df

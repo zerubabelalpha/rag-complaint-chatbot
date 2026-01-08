@@ -2,3 +2,5 @@
 .vscode
 __pycache__
 .venv
+/vector_store
+.pytest_cache

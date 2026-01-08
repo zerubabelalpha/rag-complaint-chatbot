@@ -11,7 +11,7 @@ def drop_pii_columns(df: pd.DataFrame) -> pd.DataFrame:
     df_clean = df.copy()
     cols_to_drop = [c for c in config.PII_COLUMNS_TO_DROP if c in df_clean.columns]
     df_clean = df_clean.drop(columns=cols_to_drop)
-    print(f"✓ Dropped PII columns: {cols_to_drop}")
+    print(f"[OK] Dropped PII columns: {cols_to_drop}")
     return df_clean
 
 
@@ -27,54 +27,95 @@ def normalize_text(text: str) -> str:
 
 def clean_complaint_text(text: Optional[str]) -> str:
     """
-    Clean a single complaint narrative to improve quality for embeddings:
-    - Lowercase
-    - Remove boilerplate text
-    - Remove special characters
-    - Normalize whitespace
+    Clean a single complaint narrative to improve quality for RAG:
+    - Removes CFPB redaction markers (XXXX)
+    - Removes common boilerplate filler
+    - Standardizes currency and numbers
+    - Normalizes whitespace and basic punctuation
     """
     if not isinstance(text, str):
         return ""
 
-    # Lowercase
+    # 1. Standardize lowercasing
     text = text.lower()
 
-    # Remove common boilerplate phrases
+    # 2. Remove common CFPB redaction markers
+    # Matches XXXX, XX/XX, XX/XX/XXXX, XXXXXXXX, etc.
+    text = re.sub(r'x{2,}(/\w{2,})*(/\w{2,})*', ' ', text)
+    text = re.sub(r'xx+', ' ', text)
+
+    # 3. Expand boilerplate removal
     boilerplate_patterns = [
-        r"i am writing to (file a complaint|file this complaint|complain)",
+        r"i am writing to (file a complaint|file this complaint|complain|dispute)",
         r"i am writing regarding",
         r"to whom it may concern",
         r"please investigate",
         r"if you have any questions",
+        r"i would like to",
+        r"thank you for your time",
         r"sincerely",
         r"thank you",
         r"regards",
+        r"at your earliest convenience",
+        r"attached please find",
+        r"consumer complaint narrative",
     ]
     for pat in boilerplate_patterns:
-        text = re.sub(pat, "", text, flags=re.IGNORECASE)
+        text = re.sub(pat, " ", text)
 
-    # Remove non-alphanumeric characters except basic punctuation
-    text = re.sub(r"[^a-z0-9\s\.,!?'\-()]", " ", text)
+    # 4. Standardize currency and common noise
+    text = text.replace("$", " dollar ")
+    text = text.replace("%", " percent ")
+    
+    # 5. Filter characters: keep alphanumeric and basic sentence markers
+    # Professional RAG benefits from keeping periods and commas for sentence boundaries
+    text = re.sub(r"[^a-z0-9\s\.,!\?]", " ", text)
 
-    # Normalize whitespace
+    # 6. Normalize punctuation (remove multiples)
+    text = re.sub(r'\.+', '.', text)
+    text = re.sub(r'!+', '!', text)
+    text = re.sub(r'\?+', '?', text)
+    
+    # 7. Final whitespace normalization
     text = re.sub(r"\s+", " ", text).strip()
 
     return text
 
 
-def filter_products(df: pd.DataFrame, products: List[str] = None) -> pd.DataFrame:
-    """Keep only records for specified products."""
-    if products is None:
-        products = config.REQUIRED_PRODUCTS
+def filter_products(df: pd.DataFrame, allowed_labels: List[str] = None) -> pd.DataFrame:
+    """
+    Keep only records for specified products using exact matching.
+    
+    Args:
+        df: Input DataFrame
+        allowed_labels: List of exact labels to keep. Defaults to config.REQUIRED_PRODUCTS.
+        
+    Returns:
+        Filtered DataFrame
+    """
+    if allowed_labels is None:
+        allowed_labels = config.REQUIRED_PRODUCTS
         
     df = df.copy()
-    mask = pd.Series(False, index=df.index)
-    for p in products:
-        mask = mask | df["Product"].astype(str).str.contains(p, case=False, na=False)
-
-    filtered = df[mask].copy()
-    print(f"✓ Filtered products: kept {len(filtered):,} rows for products: {products}")
+    # Use exact membership check for professional precision instead of contains()
+    filtered = df[df["Product"].isin(allowed_labels)].copy()
+    
+    print(f"[OK] Filtered products: kept {len(filtered):,} rows from the target labels.")
     return filtered
+
+
+def standardize_products(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Map raw product labels to standardized target categories using config.PRODUCT_MAP.
+    """
+    # Create an inverse mapping for fast lookup
+    inv_map = {label: category for category, labels in config.PRODUCT_MAP.items() for label in labels}
+    
+    df = df.copy()
+    df["Product"] = df["Product"].map(inv_map).fillna(df["Product"])
+    
+    print(f"[OK] Standardized products into categories: {list(config.PRODUCT_MAP.keys())}")
+    return df
 
 
 def drop_empty_narratives(df: pd.DataFrame) -> pd.DataFrame:
@@ -90,32 +131,36 @@ def drop_empty_narratives(df: pd.DataFrame) -> pd.DataFrame:
     df[narrative_col] = df[narrative_col].fillna("")
     df = df[df[narrative_col].astype(str).str.strip() != ""].copy()
     after = len(df)
-    print(f"✓ Dropped {before - after:,} rows with empty narratives; {after:,} remain")
+    print(f"[OK] Dropped {before - after:,} rows with empty narratives; {after:,} remain")
     return df
 
 
 def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Run full preprocessing according to requirements:
-    1. Filter products
-    2. Drop empty narratives
-    3. Drop PII
-    4. Clean narratives
+    1. Filter products (exact labels)
+    2. Standardize products (mapping variants to categories)
+    3. Drop empty narratives
+    4. Drop PII
+    5. Clean narratives
     """
-    print("Starting preprocessing pipeline...")
+    print("Starting professional preprocessing pipeline...")
     
-    # Filter products
+    # 1. Filter products
     df = filter_products(df)
     
-    # Drop empty narratives
+    # 2. Standardize products
+    df = standardize_products(df)
+    
+    # 3. Drop empty narratives
     df = drop_empty_narratives(df)
     
-    # Drop PII
+    # 4. Drop PII
     df = drop_pii_columns(df)
     
-    # Clean narratives
+    # 5. Clean narratives
     df["clean_narrative"] = df["Consumer complaint narrative"].apply(clean_complaint_text)
-    print("✓ Cleaned narratives")
+    print("[OK] Cleaned narratives")
     
     # Add word count for EDA
     df["narrative_word_count"] = df["clean_narrative"].apply(lambda x: len(x.split()))
@@ -155,7 +200,7 @@ def create_stratified_sample(
         shuffle=True
     )
     
-    print(f"✓ Created stratified sample: {len(sample_df):,} rows")
+    print(f"[OK] Created stratified sample: {len(sample_df):,} rows")
     
     # Detailed distribution report
     print("\nProportional Representation Check (Product %):")

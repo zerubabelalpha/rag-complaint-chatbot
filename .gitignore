@@ -2,4 +2,3 @@ data/
 .vscode
 __pycache__
 .venv
-models/

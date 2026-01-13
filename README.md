@@ -3,7 +3,6 @@
 > A production-ready Retrieval-Augmented Generation (RAG) system for the CFPB Consumer Complaint Database.
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
 ![Status](https://img.shields.io/badge/Status-Active-success.svg)
 ![UI](https://img.shields.io/badge/UI-Gradio-orange.svg)
 
@@ -32,7 +31,8 @@ rag-complaint-chatbot/
 ├── .github/          # CI/CD Workflows
 ├── data/             # Data Storage
 │   ├── raw/             # Raw CFPB exports
-│   └── processed/       # Cleaned & normalized datasets
+│   ├── processed/        # Cleaned & normalized datasets
+│   └── complainet_embeddings.parquet/       # pre built embedding
 ├── models/           # Trained models & assets
 ├── notebooks/        # Interactive Development
 │   ├── eda.ipynb        # Exploratory Data Analysis
@@ -63,7 +63,7 @@ Clone the repository and set up your environment:
 
 ```bash
 # Clone the repo
-git clone <repository-url>
+git clone <https://github.com/zerubabelalpha/rag-complaint-chatbot>
 cd rag-complaint-chatbot
 
 # Create virtual environment

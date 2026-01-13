@@ -15,9 +15,9 @@ def test_preprocessing():
     mock_data = {
         "Product": [
             "Credit card", 
-            "Personal loan", 
+            "Consumer Loan", # Raw label for Personal loan
             "Mortgage", # Should be filtered out
-            "Savings account",
+            "Checking or savings account", # Raw label for Savings account
             "Credit card"
         ],
         "Consumer complaint narrative": [
@@ -39,7 +39,7 @@ def test_preprocessing():
     
     # Check filtering
     remaining_products = df_processed["Product"].unique()
-    assert all(p in config.REQUIRED_PRODUCTS for p in remaining_products), "Filter failed"
+    assert all(p in config.TARGET_PRODUCTS for p in remaining_products), "Filter failed"
     assert "Mortgage" not in remaining_products, "Filter failed"
     
     # Check empty narrative dropping

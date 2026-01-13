@@ -4,6 +4,8 @@ from pathlib import Path
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
+import pandas as pd
+import numpy as np
 
 from . import config
 
@@ -38,7 +40,7 @@ def get_embedding_model() -> HuggingFaceEmbeddings:
         cache_folder=str(config.MODELS_DIR),  # Cache in our project folder
     )
     
-    print("✓ Embedding model loaded")
+    print("[OK] Embedding model loaded")
     return embeddings
 
 
@@ -98,66 +100,143 @@ def create_vector_store(
     # Helpful info
     try:
         n_total = int(vectorstore.index.ntotal)
-        print(f"✓ FAISS index built (ntotal={n_total:,})")
+        print(f"[OK] FAISS index built (ntotal={n_total:,})")
     except Exception:
-        print("✓ FAISS index built")
+        print("[OK] FAISS index built")
 
-    print(f"✓ Vector store persisted to {persist_directory}")
+    print(f"[OK] Vector store persisted to {persist_directory}")
     return vectorstore
 
 
-def load_vector_store(persist_directory: Optional[Path] = None) -> FAISS:
+def load_vector_store(
+    persist_directory: Optional[Path] = None,
+    use_prebuilt: bool = True,
+    force_rebuild: bool = False
+) -> FAISS:
     """
-    Load an existing FAISS vector store from disk.
+    Load or build the FAISS vector store.
     
-    Use this after you've already created and persisted a vector store.
-    Much faster than re-embedding all documents!
+    1. First, checks if a FAISS index exists in persist_directory.
+    2. If not, and use_prebuilt=True, builds it from the parquet file.
+    3. Otherwise, raises FileNotFoundError.
     
     Args:
-        persist_directory: Where the database is saved (default from config)
+        persist_directory: Where the FAISS files are (index.faiss, etc.)
+        use_prebuilt: If True, build from data/complaint_embeddings.parquet if FAISS missing
+        force_rebuild: If True, ignore existing index and rebuild from parquet
         
     Returns:
         FAISS vector store object
-        
-    Raises:
-        FileNotFoundError: If the vector store doesn't exist
-        
-    Example:
-        >>> vectorstore = load_vector_store()
-        >>> results = vectorstore.similarity_search("billing issue", k=3)
     """
     if persist_directory is None:
         persist_directory = config.VECTOR_STORE_DIR
     
     persist_directory = Path(persist_directory)
+    faiss_index_path = persist_directory / "index.faiss"
     
-    # Check if directory exists
-    if not persist_directory.exists():
-        raise FileNotFoundError(
-            f"Vector store not found at: {persist_directory}\n"
-            f"Please run the indexing notebook (01_chunk_embed_index.ipynb) first."
-        )
-    
-    print(f"Loading vector store from {persist_directory}...")
-    
-    # Get embedding model (needed for queries)
+    # Get embedding model (needed for both loading and querying)
     embeddings = get_embedding_model()
-    
-    # Load existing FAISS index
-    # allow_dangerous_deserialization=True is required because FAISS stores
-    # the docstore in a pickle file (index.pkl).
-    vectorstore = FAISS.load_local(
-        str(persist_directory),
-        embeddings,
-        allow_dangerous_deserialization=True,
+
+    # Step A: Try loading existing local FAISS index
+    if faiss_index_path.exists() and not force_rebuild:
+        print(f"Loading existing FAISS index from {persist_directory}...")
+        vectorstore = FAISS.load_local(
+            str(persist_directory),
+            embeddings,
+            allow_dangerous_deserialization=True,
+        )
+        print(f"[OK] Vector store loaded (ntotal={vectorstore.index.ntotal:,})")
+        return vectorstore
+
+    # Step B: If not found, build from pre-built parquet
+    if use_prebuilt and config.PREBUILT_EMBEDDINGS_PATH.exists():
+        print(f"FAISS index not found at {persist_directory}")
+        print(f"Building index from pre-built source: {config.PREBUILT_EMBEDDINGS_PATH}")
+        vectorstore = build_vector_store_from_parquet(
+            config.PREBUILT_EMBEDDINGS_PATH,
+            embeddings
+        )
+        
+        # Persist it for faster loading next time
+        print(f"Saving built index to {persist_directory} for future use...")
+        persist_directory.mkdir(parents=True, exist_ok=True)
+        vectorstore.save_local(str(persist_directory))
+        return vectorstore
+        
+    # Step C: Give up
+    raise FileNotFoundError(
+        f"Vector store not found at {persist_directory} "
+        f"and pre-built parquet missing at {config.PREBUILT_EMBEDDINGS_PATH}."
     )
 
-    try:
-        n_total = int(vectorstore.index.ntotal)
-        print(f"✓ Vector store loaded (ntotal={n_total:,})")
-    except Exception:
-        print("✓ Vector store loaded")
 
+def build_vector_store_from_parquet(
+    parquet_path: Path,
+    embeddings: HuggingFaceEmbeddings,
+    batch_size: int = 50000
+) -> FAISS:
+    """
+    Build a FAISS vector store from the pre-built embeddings parquet file
+    using memory-efficient batch processing.
+    
+    Args:
+        parquet_path: Path to complaint_embeddings.parquet
+        embeddings: The embedding model object
+        batch_size: Number of records to process at once
+        
+    Returns:
+        Initialized FAISS vector store
+    """
+    import pyarrow.parquet as pq
+    
+    print(f"Opening parquet file: {parquet_path}...")
+    pf = pq.ParquetFile(parquet_path)
+    total_rows = pf.metadata.num_rows
+    print(f"Total rows to process: {total_rows:,}")
+    
+    vectorstore = None
+    rows_processed = 0
+    
+    # Iterate through the parquet file in batches
+    for batch in pf.iter_batches(batch_size=batch_size):
+        df_batch = batch.to_pandas()
+        
+        texts = df_batch['document'].tolist()
+        metadatas = df_batch['metadata'].tolist()
+        
+        # Convert embeddings to float32 numpy array
+        # Ensure we handle potential None or missing embeddings
+        current_embeddings = np.stack(df_batch['embedding'].values).astype('float32')
+        
+        # Create text-embedding pairs
+        text_embeddings = list(zip(texts, current_embeddings))
+        
+        if vectorstore is None:
+            # Initialize FAISS with the first batch
+            print(f"Initializing FAISS with first batch of {len(df_batch):,}...")
+            vectorstore = FAISS.from_embeddings(
+                text_embeddings=text_embeddings,
+                embedding=embeddings,
+                metadatas=metadatas
+            )
+        else:
+            # Add subsequent batches
+            vectorstore.add_embeddings(
+                text_embeddings=text_embeddings,
+                metadatas=metadatas
+            )
+        
+        rows_processed += len(df_batch)
+        print(f"  Progress: {rows_processed:,} / {total_rows:,} ({rows_processed/total_rows:.1%})")
+        
+        # Explicitly clear batch data to free memory
+        del df_batch
+        del texts
+        del metadatas
+        del current_embeddings
+        del text_embeddings
+    
+    print(f"[OK] Built FAISS index with {vectorstore.index.ntotal:,} vectors.")
     return vectorstore
 
 
@@ -188,7 +267,7 @@ def get_retriever(vectorstore: FAISS, k: int = None):
         search_kwargs={"k": k},
     )
     
-    print(f"✓ Created retriever (k={k})")
+    print(f"[OK] Created retriever (k={k})")
     return retriever
 
 
@@ -267,11 +346,12 @@ def print_search_results(results: List[Document], query: str) -> None:
     
     for i, doc in enumerate(results, 1):
         print(f"\n--- Result {i} ---")
-        print(f"Complaint ID: {doc.metadata.get('Complaint ID', 'N/A')}")
-        print(f"Product: {doc.metadata.get('Product', 'N/A')}")
-        print(f"Issue: {doc.metadata.get('Issue', 'N/A')}")
-        print(f"Company: {doc.metadata.get('Company', 'N/A')}")
-        print(f"Chunk Index: {doc.metadata.get('chunk_index', 'N/A')}")
+        print(f"Complaint ID: {doc.metadata.get('complaint_id', 'N/A')}")
+        print(f"Product: {doc.metadata.get('product', 'N/A')}")
+        print(f"Category: {doc.metadata.get('product_category', 'N/A')}")
+        print(f"Issue: {doc.metadata.get('issue', 'N/A')}")
+        print(f"Company: {doc.metadata.get('company', 'N/A')}")
+        print(f"Chunk: {doc.metadata.get('chunk_index', 'N/A')}/{doc.metadata.get('total_chunks', 'N/A')}")
         print(f"Content preview:\n{doc.page_content[:300]}...")
     
     print("\n" + "=" * 70)

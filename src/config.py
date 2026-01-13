@@ -88,7 +88,6 @@ PRODUCT_MAP = {
         "Prepaid card"
     ],
     "Personal loan": [
-        "Personal loan",
         "Consumer Loan",
         "Payday loan",
         "Payday loan, title loan, or personal loan",
@@ -97,7 +96,6 @@ PRODUCT_MAP = {
         "Vehicle loan or lease"
     ],
     "Savings account": [
-        "Savings account",
         "Checking or savings account",
         "Bank account or service"
     ],

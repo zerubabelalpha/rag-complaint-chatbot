@@ -3,5 +3,5 @@ data/
 __pycache__
 .venv
 models/
-.pytest_cache
 vector_store/
+.pytest_cache

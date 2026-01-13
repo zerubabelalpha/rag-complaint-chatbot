@@ -66,7 +66,7 @@ def dataframe_to_documents(df: pd.DataFrame) -> List[Document]:
         if doc.page_content.strip():
             documents.append(doc)
     
-    print(f"✓ Converted {len(documents):,} rows to LangChain Documents")
+    print(f"[OK] Converted {len(documents):,} rows to LangChain Documents")
     
     # Show sample
     if documents:

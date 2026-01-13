@@ -110,7 +110,8 @@ def create_vector_store(
 
 def load_vector_store(
     persist_directory: Optional[Path] = None,
-    use_prebuilt: bool = True
+    use_prebuilt: bool = True,
+    force_rebuild: bool = False
 ) -> FAISS:
     """
     Load or build the FAISS vector store.
@@ -122,6 +123,7 @@ def load_vector_store(
     Args:
         persist_directory: Where the FAISS files are (index.faiss, etc.)
         use_prebuilt: If True, build from data/complaint_embeddings.parquet if FAISS missing
+        force_rebuild: If True, ignore existing index and rebuild from parquet
         
     Returns:
         FAISS vector store object
@@ -136,7 +138,7 @@ def load_vector_store(
     embeddings = get_embedding_model()
 
     # Step A: Try loading existing local FAISS index
-    if faiss_index_path.exists():
+    if faiss_index_path.exists() and not force_rebuild:
         print(f"Loading existing FAISS index from {persist_directory}...")
         vectorstore = FAISS.load_local(
             str(persist_directory),

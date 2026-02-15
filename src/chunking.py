@@ -139,8 +139,9 @@ def print_chunk_samples(chunks: List[Document], n_samples: int = 2) -> None:
         print(f"\n--- Chunk {i+1} ---")
         print(f"Metadata: {doc.metadata}")
         print(f"Length: {len(doc.page_content)} characters")
-        print(f"Content:\n{doc.page_content[:300]}...")
-        if len(doc.page_content) > 300:
+        preview_len = config.DISPLAY_CONFIG.content_preview_length
+        print(f"Content:\n{doc.page_content[:preview_len]}...")
+        if len(doc.page_content) > preview_len:
             print("[...]")
             
     print("\n" + "=" * 50)

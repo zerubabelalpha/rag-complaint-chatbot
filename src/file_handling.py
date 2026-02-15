@@ -5,7 +5,7 @@ from pathlib import Path
 
 from . import config
 
-def load_raw_data(filepath :Optional[Path]=None)->pd.DataFrame:
+def load_raw_data(filepath: Optional[Path] = None) -> pd.DataFrame:
     if filepath is None:
         filepath = config.RAW_DATA_PATH
     
@@ -28,7 +28,7 @@ def load_raw_data(filepath :Optional[Path]=None)->pd.DataFrame:
 
 
 
-def save_processed_data(df:pd.DataFrame,filepath:Optional[Path]=None)->Path:
+def save_processed_data(df: pd.DataFrame, filepath: Optional[Path] = None) -> Path:
     if filepath is None:
         filepath = config.PROCESSED_DATA_PATH
     
@@ -46,7 +46,7 @@ def save_processed_data(df:pd.DataFrame,filepath:Optional[Path]=None)->Path:
 
 
 
-def load_processed_data(filepath:Optional[Path]=None)->pd.DataFrame:
+def load_processed_data(filepath: Optional[Path] = None) -> pd.DataFrame:
     if filepath is None:
         filepath = config.PROCESSED_DATA_PATH
     

@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from dataclasses import dataclass
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -30,27 +31,68 @@ EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 LLM_MODEL_NAME = "google/flan-t5-small"
 
+@dataclass
+class LLMConfig:
+    """Configuration for Large Language Model."""
+    model_name: str = "microsoft/Phi-3-mini-4k-instruct"
+    temperature: float = 0.1
+    max_new_tokens: int = 512
+
+
+@dataclass
+class DisplayConfig:
+    """Configuration for display and UI constants."""
+    content_preview_length: int = 300
+    max_content_length: int = 200
+    separator_length: int = 60
+
+
+# Default configuration instances
+LLM_CONFIG = LLMConfig()
+DISPLAY_CONFIG = DisplayConfig()
+
 # =============================================================================
 # CHUNKING CONFIGURATION
 # =============================================================================
 
-CHUNK_SIZE = 500
-CHUNK_OVERLAP = 50
+@dataclass
+class ChunkingConfig:
+    """Configuration for text chunking."""
+    chunk_size: int = 500
+    chunk_overlap: int = 50
+
+
+# Default chunking configuration instance
+CHUNKING_CONFIG = ChunkingConfig()
+
+# Backward compatibility - keep module-level constants
+CHUNK_SIZE = CHUNKING_CONFIG.chunk_size
+CHUNK_OVERLAP = CHUNKING_CONFIG.chunk_overlap
 
 # =============================================================================
 # RETRIEVAL CONFIGURATION
 # =============================================================================
 
-# Number of documents to retrieve for each query
-# - More docs = more context but slower and may include noise
-# - 3 is a safer bet for small models like FLAN-T5-small (512 token limit)
-RETRIEVAL_K = 3
+@dataclass
+class RetrievalConfig:
+    """Configuration for document retrieval."""
+    # Number of documents to retrieve for each query
+    # - More docs = more context but slower and may include noise
+    # - 3 is a safer bet for small models like FLAN-T5-small (512 token limit)
+    k: int = 3
+
+
+# Default retrieval configuration instance
+RETRIEVAL_CONFIG = RetrievalConfig()
+
+# Backward compatibility - keep module-level constant
+RETRIEVAL_K = RETRIEVAL_CONFIG.k
 
 # =============================================================================
 # HUGGINGFACE CACHE SETUP
 # =============================================================================
 
-def setup_hf_cache():
+def setup_hf_cache() -> None:
     """
     Configure HuggingFace to cache models in our project's models/ folder.
     

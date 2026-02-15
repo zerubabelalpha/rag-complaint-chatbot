@@ -21,7 +21,7 @@ class RAGPipeline:
         self.llm_engine = None
         self.is_initialized = False
 
-    def initialize(self):
+    def initialize(self) -> bool:
         """Load necessary models and data."""
         print("\n--- Initializing RAG Pipeline ---")
         
@@ -37,8 +37,8 @@ class RAGPipeline:
             
         # 2. Load LLM
         self.llm_engine = llm.get_llm(
-            temperature=0.1,  # Keep it grounded
-            max_new_tokens=256
+            temperature=config.LLM_CONFIG.temperature,
+            max_new_tokens=config.LLM_CONFIG.max_new_tokens
         )
         
         self.is_initialized = True
@@ -79,7 +79,7 @@ class RAGPipeline:
         }
 
 
-def main():
+def main() -> None:
     """Simple CLI entry point for testing."""
     pipeline = RAGPipeline()
     if not pipeline.initialize():

@@ -3,6 +3,8 @@ import pandas as pd
 from typing import List, Dict, Any
 from langchain_core.documents import Document
 
+from . import config
+
 
 def row_to_document(row: pd.Series) -> Document:
     """
@@ -75,13 +77,17 @@ def dataframe_to_documents(df: pd.DataFrame) -> List[Document]:
     return documents
 
 
-def print_document_sample(doc: Document, max_content_length: int = 200) -> None:
+def print_document_sample(doc: Document, max_content_length: int = None) -> None:
     """
     Pretty print a Document for inspection.
     """
-    print("=" * 60)
+    if max_content_length is None:
+        max_content_length = config.DISPLAY_CONFIG.max_content_length
+    
+    sep_len = config.DISPLAY_CONFIG.separator_length
+    print("=" * sep_len)
     print("DOCUMENT SAMPLE")
-    print("=" * 60)
+    print("=" * sep_len)
     
     # Show content (truncated)
     content = doc.page_content
@@ -89,8 +95,8 @@ def print_document_sample(doc: Document, max_content_length: int = 200) -> None:
         content = content[:max_content_length] + "..."
     print(f"Content:\n{content}")
     
-    print("-" * 60)
+    print("-" * sep_len)
     print("Metadata:")
     for key, value in doc.metadata.items():
         print(f"  {key}: {value}")
-    print("=" * 60)
+    print("=" * sep_len)

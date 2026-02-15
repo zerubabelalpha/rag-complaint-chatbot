@@ -18,6 +18,10 @@ jobs:
       with:
         python-version: "3.11"
 
+    - name: Install PyTorch (CPU only)
+      run: |
+        pip install torch --index-url https://download.pytorch.org/whl/cpu
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -27,9 +31,3 @@ jobs:
     - name: Run Unit Tests with pytest
       run: |
         pytest tests/ -v --cov=src --cov-report=term-missing
-
-    - name: Generate Coverage Badge
-      if: success()
-      run: |
-        coverage_percent=$(pytest tests/ --cov=src --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
-        echo "Coverage: ${coverage_percent}%"

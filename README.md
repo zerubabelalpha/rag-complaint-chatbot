@@ -3,18 +3,18 @@
 > A production-ready Retrieval-Augmented Generation (RAG) system for the CFPB Consumer Complaint Database.
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue.svg)
-![Status](https://img.shields.io/badge/Status-Active-success.svg)
-![UI](https://img.shields.io/badge/UI-Gradio-orange.svg)
+![Build Status](https://github.com/zerubabelalpha/rag-complaint-chatbot/actions/workflows/unittest.yml/badge.svg)
+![UI](https://img.shields.io/badge/UI-Streamlit-ff4b4b.svg)
 
 ## Overview
 
 This project implements a robust RAG pipeline designed to analyze and interact with financial consumer complaints. It focuses on five key product categories: **Credit Cards**, **Personal Loans**, **BNPL**, **Savings Accounts**, and **Money Transfers**. 
 
-By leveraging advanced NLP techniques (FAISS + FLAN-T5), the system provides semantic search capabilities and intelligent responses to user queries based on real-world complaint data.
+By leveraging advanced NLP techniques (FAISS + Phi-3 Mini), the system provides semantic search capabilities and intelligent responses to user queries based on real-world complaint data.
 
 ## Key Features
 
-- **Gradio Web Interface**: Modern, minimalist web UI for interacting with the chatbot.
+- **Interactive Streamlit Dashboard**: Professional UI with real-time streaming responses and business insights side-panel.
 - **End-to-End RAG Pipeline**: From raw CSV to vector search and retrieval using LangChain.
 - **Source Verification**: Explicit display of source text chunks for every AI response to enhance trust.
 - **Advanced Preprocessing**: Automated filtering, PII removal, and text normalization.
@@ -28,23 +28,24 @@ By leveraging advanced NLP techniques (FAISS + FLAN-T5), the system provides sem
 
 ```text
 rag-complaint-chatbot/
-├── .github/          # CI/CD Workflows
-├── data/             # Data Storage
+├── .github/             # CI/CD Workflows
+├── dashboard/           # Streamlit Application
+│   └── app.py
+├── data/                # Data Storage
 │   ├── raw/             # Raw CFPB exports
-│   ├── processed/        # Cleaned & normalized datasets
+│   ├── processed/       # Cleaned & normalized datasets
 │   └── complainet_embeddings.parquet/       # pre built embedding
-├── models/           # Trained models & assets
-├── notebooks/        # Interactive Development
+├── models/              # Trained models & assets
+├── notebooks/           # Interactive Development
 │   ├── eda.ipynb        # Exploratory Data Analysis
 │   └── chunk_embed...   # Pipeline prototyping
-├── src/              # Source Code
+├── src/                 # Source Code
 │   ├── config.py        # Global configuration
 │   ├── preprocess.py    # Cleaning pipelines
 │   ├── vectorstore.py   # FAISS management
 │   ├── rag_pipline.py   # Core RAG logic
 │   └── ...              # Helper modules
-├── tests/            # Verification Suite
-├── app.py            # Gradio Web Application
+├── tests/               # Verification Suite
 └── requirements.txt     # Dependencies
 ```
 
@@ -87,14 +88,14 @@ pip install -r requirements.txt
 2.  **Clean & Filter**: Run `notebooks/eda.ipynb`.
 3.  **Build Index**: Run `notebooks/chunk_embed_index.ipynb` to generate embeddings and build the FAISS index.
 
-### 4. Launch the Chatbot
+### 4. Launch the Dashboard
 
-You can interact with the chatbot via the web interface:
+Interact with the chatbot via the Streamlit interface:
 
 ```bash
-python app.py
+streamlit run dashboard/app.py
 ```
-Then visit `http://127.0.0.1:7860` in your browser.
+Then visit the URL displayed in your terminal (usually `http://localhost:8501`).
 
 ---
 
@@ -102,8 +103,8 @@ Then visit `http://127.0.0.1:7860` in your browser.
 
 | Module | Description |
 | :--- | :--- |
-| `app.py` | Launches the minimalist Gradio web interface. |
-| `src/rag_pipline.py` | Orchestrates retrieval, augmentation, and generation. |
+| `dashboard/app.py` | Professional Streamlit dashboard with streaming chat and insights. |
+| `src/rag_pipline.py` | Orchestrates retrieval, augmentation, and generation (supports streaming). |
 | `src/preprocess.py` | Handles regex-based cleaning, date parsing, and text normalization. |
 | `src/vectorstore.py` | Manages FAISS index creation, saving, loading, and semantic search. |
 | `src/chunking.py` | Logical text splitting and chunking strategies. |
@@ -125,12 +126,6 @@ To ensure transparency, the system displays the exact snippets used to generate 
 Run the included test suite to verify code integrity:
 
 ```bash
-# Verify Preprocessing Logic
-python tests/verify_preprocess.py
-
-# Verify Document handling
-python tests/verify_docs.py
-
-# Verify Text Cleaning
-python tests/verify_cleaning.py
+# Run all unit tests with coverage
+pytest tests/ -v --cov=src --cov-report=term-missing
 ```

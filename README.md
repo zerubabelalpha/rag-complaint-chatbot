@@ -1,6 +1,6 @@
 # RAG Complaint Chatbot
 
-> A production-ready Retrieval-Augmented Generation (RAG) system for the CFPB Consumer Complaint Database.
+> Retrieval-Augmented Generation (RAG) system for the CFPB Consumer Complaint Database.
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue.svg)
 ![Build Status](https://github.com/zerubabelalpha/rag-complaint-chatbot/actions/workflows/unittest.yml/badge.svg)

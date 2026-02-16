@@ -34,11 +34,12 @@ rag-complaint-chatbot/
 ├── data/                # Data Storage
 │   ├── raw/             # Raw CFPB exports
 │   ├── processed/       # Cleaned & normalized datasets
-│   └── complainet_embeddings.parquet/       # pre built embedding
+│   └── complaint_embeddings.parquet/       # pre built embedding
 ├── models/              # Trained models & assets
 ├── notebooks/           # Interactive Development
 │   ├── eda.ipynb        # Exploratory Data Analysis
-│   └── chunk_embed...   # Pipeline prototyping
+│   ├── chunk_embed_index.ipynb   # Pipeline prototyping
+│   └── rag_pipeline.ipynb        # RAG Pipeline Evaluation
 ├── src/                 # Source Code
 │   ├── config.py        # Global configuration
 │   ├── preprocess.py    # Cleaning pipelines

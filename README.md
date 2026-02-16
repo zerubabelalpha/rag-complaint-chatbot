@@ -10,7 +10,7 @@
 
 This project implements a robust RAG pipeline designed to analyze and interact with financial consumer complaints. It focuses on five key product categories: **Credit Cards**, **Personal Loans**, **BNPL**, **Savings Accounts**, and **Money Transfers**. 
 
-By leveraging advanced NLP techniques (FAISS + Phi-3 Mini), the system provides semantic search capabilities and intelligent responses to user queries based on real-world complaint data.
+By leveraging advanced NLP techniques (FAISS + FLAN-T5-small), the system provides semantic search capabilities and intelligent responses to user queries based on real-world complaint data.
 
 ## Key Features
 
@@ -127,7 +127,7 @@ To ensure transparency, the system displays the exact snippets used to generate 
 Run the optimized core test suite to verify code integrity in seconds:
 
 ```bash
-# Run the consolidated core tests (recommended)
+# Run the consolidated core tests 
 pytest tests/test_core.py -v
 
 # Run with full coverage report

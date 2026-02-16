@@ -43,7 +43,7 @@ def get_llm(
 
     # Create the pipeline
     pipe = pipeline(
-        "text2text-generation",
+        "text-generation", # Fallback to text-generation if text2text-generation is missing
         model=model,
         tokenizer=tokenizer,
         max_new_tokens=max_new_tokens,

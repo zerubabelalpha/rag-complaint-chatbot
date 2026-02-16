@@ -61,7 +61,7 @@ class TestCoreLogic:
     def test_llm_formatting_essentials(self, sample_documents):
         """Verify prompt formatting logic."""
         context = llm.format_docs_for_context(sample_documents)
-        assert "[Document 1 | Complaint 1]" in context
+        assert "Content: This is a complaint" in context
         assert sample_documents[0].page_content in context
 
     # --- Vector Store (Mocked) ---

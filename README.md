@@ -43,7 +43,7 @@ rag-complaint-chatbot/
 │   ├── config.py        # Global configuration
 │   ├── preprocess.py    # Cleaning pipelines
 │   ├── vectorstore.py   # FAISS management
-│   ├── rag_pipline.py   # Core RAG logic
+│   ├── rag_pipeline.py   # Core RAG logic
 │   └── ...              # Helper modules
 ├── tests/               # Verification Suite
 └── requirements.txt     # Dependencies
@@ -104,7 +104,7 @@ Then visit the URL displayed in your terminal (usually `http://localhost:8501`).
 | Module | Description |
 | :--- | :--- |
 | `dashboard/app.py` | Professional Streamlit dashboard with streaming chat and insights. |
-| `src/rag_pipline.py` | Orchestrates retrieval, augmentation, and generation (supports streaming). |
+| `src/rag_pipeline.py` | Orchestrates retrieval, augmentation, and generation (supports streaming). |
 | `src/preprocess.py` | Handles regex-based cleaning, date parsing, and text normalization. |
 | `src/vectorstore.py` | Manages FAISS index creation, saving, loading, and semantic search. |
 | `src/chunking.py` | Logical text splitting and chunking strategies. |
@@ -123,9 +123,12 @@ To ensure transparency, the system displays the exact snippets used to generate 
 
 ## Verification
 
-Run the included test suite to verify code integrity:
+Run the optimized core test suite to verify code integrity in seconds:
 
 ```bash
-# Run all unit tests with coverage
-pytest tests/ -v --cov=src --cov-report=term-missing
+# Run the consolidated core tests (recommended)
+pytest tests/test_core.py -v
+
+# Run with full coverage report
+pytest tests/test_core.py -v --cov=src --cov-report=term-missing
 ```

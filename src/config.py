@@ -34,7 +34,7 @@ LLM_MODEL_NAME = "google/flan-t5-small"
 @dataclass
 class LLMConfig:
     """Configuration for Large Language Model."""
-    model_name: str = "microsoft/Phi-3-mini-4k-instruct"
+    model_name: str = "google/flan-t5-small"
     temperature: float = 0.1
     max_new_tokens: int = 512
 

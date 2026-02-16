@@ -1,23 +1,23 @@
 from typing import Optional, List
 import torch
 from langchain_huggingface import HuggingFacePipeline
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from langchain_core.documents import Document
 
 from . import config
 
 def get_llm(
-    model_name: str = "microsoft/Phi-3-mini-4k-instruct",
+    model_name: str = "google/flan-t5-small",
     max_new_tokens: int = 512,
     temperature: float = 0.1
 ) -> HuggingFacePipeline:
     """
-    Load the Microsoft Phi-3-mini model.
+    Load the Google FLAN-T5-small model.
     
-    Phi-3-mini is a high-performance 3.8B parameter model that:
-    - Performs significantly better than T5 for reasoning tasks.
-    - Fits on most consumer hardware (approx 4GB-8GB VRAM/RAM).
-    - Uses 'text-generation' (Causal LM) architecture.
+    FLAN-T5-small is an 80M parameter Seq2Seq model that:
+    - Runs very fast on CPU.
+    - Is suitable for summarization and simple QA.
+    - Uses 'text2text-generation' architecture.
     
     Returns:
         LangChain-compatible HuggingFacePipeline
@@ -30,63 +30,53 @@ def get_llm(
     tokenizer = AutoTokenizer.from_pretrained(
         model_name,
         cache_dir=str(config.MODELS_DIR),
-        trust_remote_code=True
     )
     
     # Load model
-    # We use AutoModelForCausalLM for Phi-3
-    model = AutoModelForCausalLM.from_pretrained(
+    # We use AutoModelForSeq2SeqLM for T5
+    model = AutoModelForSeq2SeqLM.from_pretrained(
         model_name,
         cache_dir=str(config.MODELS_DIR),
-        trust_remote_code=True,
-        torch_dtype="auto",       # Automatically choose float16/bfloat16
-        device_map="auto",        # Automatically use GPU if available
+        torch_dtype="auto",
+        low_cpu_mem_usage=True,
     )
 
     # Create the pipeline
     pipe = pipeline(
-        "text-generation",
+        "text2text-generation",
         model=model,
         tokenizer=tokenizer,
         max_new_tokens=max_new_tokens,
         temperature=temperature,
         do_sample=temperature > 0,
-        trust_remote_code=True,
-        # Phi-3 works best when we disable the "End of sentence" token in return
-        return_full_text=False, 
     )
 
     return HuggingFacePipeline(pipeline=pipe)
 
 
 # =============================================================================
-# PHI-3 SPECIFIC PROMPT TEMPLATE
+# FLAN-T5 SPECIFIC PROMPT TEMPLATE
 # =============================================================================
 
-# Phi-3 uses a specific format with <|user|> and <|assistant|> tags
-RAG_PROMPT_TEMPLATE = """<|user|>
-You are a professional financial analyst. Use the provided context to answer the user's question accurately.
+# T5 expects a direct instruction. No need for complex chat tags.
 
-Guidelines:
-1. Use ONLY the provided context to answer the question.
-2. If the answer is not in the context, say "I don't have enough information."
-3. Maintain a professional tone.
+RAG_PROMPT_TEMPLATE = """You are a helpful financial assistant. Answer the question using ONLY the following context. If you cannot answer using the context, say "I don't have enough information".
 
-CONTEXT:
+Context:
 {context}
 
-QUESTION: {question}<|end|>
-<|assistant|>"""
+Question: {question}
+
+Answer:"""
 
 
 def format_docs_for_context(docs: List[Document]) -> str:
     """
-    Format retrieved documents for the Phi-3 prompt.
+    Format retrieved documents for the T5 prompt.
     """
     context_parts = []
     for i, doc in enumerate(docs, 1):
-        complaint_id = doc.metadata.get("complaint_id", "Unknown ID")
         content = doc.page_content.strip()
-        context_parts.append(f"[Document {i} | Complaint {complaint_id}]\n{content}")
+        context_parts.append(f"Content: {content}")
     
     return "\n\n".join(context_parts)

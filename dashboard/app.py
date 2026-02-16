@@ -102,7 +102,7 @@ def main():
             st.info("Start chatting to generate business insights based on retrieved context.")
         
         st.markdown("---")
-        st.caption("Powered by Phi-3 Mini & RAG")
+        st.caption("Powered by FLAN-T5 Mini & RAG")
 
     # Main Chat Area
     st.markdown('<p class="main-header">Consumer Complaint AI Analyst</p>', unsafe_allow_html=True)

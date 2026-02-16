@@ -1,27 +1,33 @@
 # Core Data Science
-pandas==2.2.2
-numpy==1.26.4
-matplotlib==3.8.4
-seaborn==0.13.2
+pandas
+numpy
+matplotlib
+seaborn
 ipykernel
 
 # NLP & Embeddings (torch handled separately in CI)
-transformers==4.40.2
-sentence-transformers==3.0.0
+transformers>=4.41.2
+sentence-transformers
 
 # Vector Database
-faiss-cpu==1.8.0
+faiss-cpu
 
 # RAG Framework
-langchain==0.3.7
-langchain-community==0.3.7
-langchain-huggingface==0.1.2
+langchain
+langchain-community
+langchain-huggingface
 
 # Utilities
-python-dotenv==1.0.1
-tqdm==4.66.4
-scikit-learn==1.4.2
-pyarrow==16.1.0
+python-dotenv
+tqdm
+scikit-learn
+pyarrow
 
 # UI
-streamlit==1.36.0
+streamlit
+
+#Test
+pytest 
+pytest-cov 
+pytest-mock
+

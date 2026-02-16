@@ -110,3 +110,41 @@ def mock_processed_dataframe():
         "Timely response?": ["Yes", "Yes", "No"],
         "Consumer disputed?": ["No", "Yes", "No"]
     })
+import unittest.mock
+
+@pytest.fixture
+def mock_embeddings():
+    """Mock HuggingFaceEmbeddings to avoid model download."""
+    # Patch where it's used in src.vectorstore
+    with unittest.mock.patch("src.vectorstore.HuggingFaceEmbeddings") as mock:
+        instance = mock.return_value
+        instance.embed_documents.return_value = [[0.1] * 384]
+        instance.embed_query.return_value = [0.1] * 384
+        yield instance
+
+
+@pytest.fixture
+def mock_llm():
+    """Mock HuggingFacePipeline to avoid large model loading."""
+    # Patch the function that loads the LLM
+    with unittest.mock.patch("src.llm.get_llm") as mock:
+        instance = unittest.mock.Mock()
+        instance.invoke.return_value = "Mocked LLM Answer"
+        mock.return_value = instance
+        yield instance
+
+
+@pytest.fixture
+def mock_faiss():
+    """Mock FAISS vector store."""
+    # Patch where it's used in src.vectorstore
+    with unittest.mock.patch("src.vectorstore.FAISS") as mock:
+        instance = unittest.mock.Mock()
+        instance.similarity_search.return_value = [
+            Document(page_content="Mock doc", metadata={"complaint_id": "MOCK"})
+        ]
+        # Allow FAISS.from_documents to return our mock instance
+        mock.from_documents.return_value = instance
+        # Allow FAISS.load_local to return our mock instance
+        mock.load_local.return_value = instance
+        yield instance

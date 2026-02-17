@@ -5,10 +5,6 @@ from . import vectorstore
 from . import llm
 from . import config
 
-# For streaming support
-from threading import Thread
-from transformers import TextIteratorStreamer
-import torch
 
 
 class RAGPipeline:
@@ -26,7 +22,7 @@ class RAGPipeline:
         self.llm_engine = None
         self.is_initialized = False
 
-    def initialize(self) -> bool:
+    def initialize(self, provider: str = None) -> bool:
         """Load necessary models and data."""
         print("\n--- Initializing RAG Pipeline ---")
         
@@ -42,6 +38,7 @@ class RAGPipeline:
             
         # 2. Load LLM
         self.llm_engine = llm.get_llm(
+            provider=provider,
             temperature=config.LLM_CONFIG.temperature,
             max_new_tokens=config.LLM_CONFIG.max_new_tokens
         )
@@ -61,13 +58,12 @@ class RAGPipeline:
         print(f"Processing Query: '{query}'")
         
         # Step 1: Retrieve relevant documents
-        # We use similarity search (Top-K)
         retrieved_docs = vectorstore.search_similar(self.vector_store, query, k=k)
         
-        # Step 2: Augment - Format docs into a context string
+        # Step 2: Augment
         context_str = llm.format_docs_for_context(retrieved_docs)
         
-        # Step 3: Generate - Fill the template and call LLM
+        # Step 3: Generate
         prompt = llm.RAG_PROMPT_TEMPLATE.format(
             context=context_str,
             question=query
@@ -76,84 +72,16 @@ class RAGPipeline:
         print(f"Generating answer based on {len(retrieved_docs)} sources...")
         answer = self.llm_engine.invoke(prompt)
         
-        # Step 4: Return result and source metadata
+        # Step 4: Return result
         return {
             "query": query,
             "answer": answer.strip(),
             "source_documents": retrieved_docs
         }
 
-    def run_stream(self, query: str, k: int = 5):
-        """
-        Execute RAG flow with streaming response (generator).
-        
-        Yields:
-            str: Tokens as they are generated
-            
-        Returns:
-            dict: Final metadata (at the end of generation, or accessible via side-channel)
-            NOTE: In a generator, 'return' value is captured by StopIteration, 
-                  so usage typically involves yielding tokens and then yielding a final object 
-                  or handling metadata separately.
-                  Here we will yield tokens, and the caller can retrieve sources from 
-                  a separate method or we yield a special object at start/end.
-        """
-        if not self.is_initialized:
-            if not self.initialize():
-                yield "Error: Pipeline initialization failed"
-                return
-
-        # 1. Retrieve
-        retrieved_docs = vectorstore.search_similar(self.vector_store, query, k=k)
-        
-        # 2. Format
-        context_str = llm.format_docs_for_context(retrieved_docs)
-        prompt = llm.RAG_PROMPT_TEMPLATE.format(
-            context=context_str,
-            question=query
-        )
-        
-        # 3. Prepare Streaming
-        # Access underlying HF components
-        # self.llm_engine is a HuggingFacePipeline
-        # .pipeline is the transformers pipeline
-        pipe = self.llm_engine.pipeline
-        model = pipe.model
-        tokenizer = pipe.tokenizer
-        
-        # Tokenize inputs
-        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-        
-        # Setup streamer
-        streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-        
-        # Generation config from our config object
-        generation_kwargs = dict(
-            **inputs,
-            streamer=streamer,
-            max_new_tokens=config.LLM_CONFIG.max_new_tokens,
-            temperature=config.LLM_CONFIG.temperature,
-            do_sample=config.LLM_CONFIG.temperature > 0,
-            eos_token_id=tokenizer.eos_token_id
-        )
-        
-        # 4. Run Generation in Thread
-        thread = Thread(target=model.generate, kwargs=generation_kwargs)
-        thread.start()
-        
-        # 5. Yield Documents First (so UI can show them immediately)
-        # We wrap them in a special dict to distinguish from text
-        yield {"source_documents": retrieved_docs}
-        
-        # 6. Yield tokens
-        for token in streamer:
-            yield token
-        
-        # Join thread (good practice)
-        thread.join()
-
 
 def main() -> None:
+
     """Simple CLI entry point for testing."""
     pipeline = RAGPipeline()
     if not pipeline.initialize():

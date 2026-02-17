@@ -1,31 +1,63 @@
-from typing import Optional, List
+from typing import Optional, List, Any
+
 import torch
-from langchain_huggingface import HuggingFacePipeline
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+import os
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from langchain_core.documents import Document
+from openai import OpenAI
 
 from . import config
 
-def get_llm(
-    model_name: str = "google/flan-t5-small",
-    max_new_tokens: int = 512,
-    temperature: float = 0.1
-) -> HuggingFacePipeline:
-    """
-    Load the Google FLAN-T5-small model.
-    
-    FLAN-T5-small is an 80M parameter Seq2Seq model that:
-    - Runs very fast on CPU.
-    - Is suitable for summarization and simple QA.
-    - Uses 'text2text-generation' architecture.
-    
-    Returns:
-        LangChain-compatible HuggingFacePipeline
-    """
-    print(f"Loading Alternative LLM: {model_name}")
-    print(f"  Max new tokens: {max_new_tokens}")
-    print(f"  Temperature: {temperature}")
+class OpenAIEngine:
+    """Wrapper for OpenAI-compatible API to match the pipeline interface."""
+    def __init__(self, api_key: str, base_url: str, model_name: str, temperature: float, max_tokens: int):
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.model_name = model_name
+        self.temperature = temperature
+        self.max_tokens = max_tokens
 
+    def invoke(self, prompt: str) -> str:
+        """Synchronous invocation."""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=self.temperature,
+                max_tokens=self.max_tokens
+            )
+            return response.choices[0].message.content or "_(No response)_"
+        except Exception as e:
+            # Provide detailed error information for debugging
+            error_type = type(e).__name__
+            error_msg = str(e)
+            return f"❌ API Error ({error_type}): {error_msg}\n\nPlease check:\n1. API key is valid\n2. Base URL is correct\n3. Model name is supported\n4. Network connection is stable"
+
+def get_llm(
+
+    provider: str = None,
+    model_name: str = None,
+    max_new_tokens: int = None,
+    temperature: float = None
+) -> Any:
+    """
+    Load the specified LLM (Local or OpenAI).
+    """
+    provider = provider or config.LLM_CONFIG.provider
+    model_name = model_name or (config.LLM_CONFIG.openai_model if provider == "openai" else config.LLM_CONFIG.model_name)
+    max_new_tokens = max_new_tokens or config.LLM_CONFIG.max_new_tokens
+    temperature = temperature or config.LLM_CONFIG.temperature
+
+    if provider == "openai":
+        print(f"Initializing OpenAI-compatible LLM: {model_name}")
+        return OpenAIEngine(
+            api_key=config.LLM_CONFIG.openai_api_key,
+            base_url=config.LLM_CONFIG.openai_base_url,
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=max_new_tokens
+        )
+
+    print(f"Loading Local LLM: {model_name}")
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
         model_name,
@@ -33,7 +65,6 @@ def get_llm(
     )
     
     # Load model
-    # We use AutoModelForSeq2SeqLM for T5
     model = AutoModelForSeq2SeqLM.from_pretrained(
         model_name,
         cache_dir=str(config.MODELS_DIR),
@@ -41,24 +72,41 @@ def get_llm(
         low_cpu_mem_usage=True,
     )
 
-    # Create the pipeline
-    pipe = pipeline(
-        "text-generation", # Fallback to text-generation if text2text-generation is missing
-        model=model,
-        tokenizer=tokenizer,
-        max_new_tokens=max_new_tokens,
-        temperature=temperature,
-        do_sample=temperature > 0,
-    )
-
-    return HuggingFacePipeline(pipeline=pipe)
+    # Create a custom wrapper that uses model.generate() directly
+    # This avoids pipeline task type issues with transformers 5.1.0
+    class LocalLLMEngine:
+        """Wrapper for local seq2seq model to match the pipeline interface."""
+        def __init__(self, model, tokenizer, max_new_tokens, temperature):
+            self.model = model
+            self.tokenizer = tokenizer
+            self.max_new_tokens = max_new_tokens
+            self.temperature = temperature
+            self.do_sample = temperature > 0
+        
+        def invoke(self, prompt: str) -> str:
+            """Generate response using model.generate()."""
+            inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+            
+            # Generate with appropriate parameters
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=self.max_new_tokens,
+                    temperature=self.temperature if self.do_sample else 1.0,
+                    do_sample=self.do_sample,
+                    top_p=0.95 if self.do_sample else None,
+                )
+            
+            # Decode and return
+            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            return response
+    
+    return LocalLLMEngine(model, tokenizer, max_new_tokens, temperature)
 
 
 # =============================================================================
-# FLAN-T5 SPECIFIC PROMPT TEMPLATE
+# PROMPT TEMPLATE
 # =============================================================================
-
-# T5 expects a direct instruction. No need for complex chat tags.
 
 RAG_PROMPT_TEMPLATE = """You are a helpful financial assistant. Answer the question using ONLY the following context.
 
@@ -78,7 +126,7 @@ Answer:"""
 
 def format_docs_for_context(docs: List[Document]) -> str:
     """
-    Format retrieved documents for the T5 prompt.
+    Format retrieved documents for the prompt.
     """
     context_parts = []
     for i, doc in enumerate(docs, 1):

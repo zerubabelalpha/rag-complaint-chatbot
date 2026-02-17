@@ -34,9 +34,15 @@ LLM_MODEL_NAME = "google/flan-t5-small"
 @dataclass
 class LLMConfig:
     """Configuration for Large Language Model."""
+    provider: str = "local"  # "local" or "openai"
     model_name: str = "google/flan-t5-small"
     temperature: float = 0.1
     max_new_tokens: int = 512
+    
+    # OpenAI / External Provider Settings
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+    openai_base_url: str = os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
+    openai_model: str = os.getenv("OPENAI_MODEL_NAME", "arcee-ai/trinity-large-preview:free")
 
 
 @dataclass

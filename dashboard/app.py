@@ -3,6 +3,9 @@ import time
 import pandas as pd
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+# Load environment variables from .env file
+load_dotenv()
 
 # Add project root to sys.path to allow imports from src
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -51,17 +54,51 @@ st.markdown("""
 
 
 @st.cache_resource
-def get_pipeline():
+def get_pipeline(provider="local"):
     """Initialize and cache the RAG pipeline."""
-    with st.spinner("Initializing AI Engine and Vector Store..."):
+    with st.spinner(f"Initializing AI Engine ({provider}) and Vector Store..."):
         pipeline = RAGPipeline()
-        success = pipeline.initialize()
+        success = pipeline.initialize(provider=provider)
         if not success:
             st.error("Failed to initialize pipeline. Please check logs.")
             return None
         return pipeline
 
 def main():
+    # Sidebar Settings
+    with st.sidebar:
+        st.header("⚙️ LLM Settings")
+        
+        provider = st.selectbox(
+            "Select LLM Provider",
+            options=["local", "openai"],
+            index=0 if config.LLM_CONFIG.provider == "local" else 1,
+            help="Choose between running a small model locally on your CPU or using an external API."
+        )
+        
+        # Track provider changes to force re-initialization
+        if "current_provider" not in st.session_state:
+            st.session_state.current_provider = provider
+            
+        if st.session_state.current_provider != provider:
+            st.session_state.current_provider = provider
+            # Force clear cache for get_pipeline if provider changes
+            get_pipeline.clear()
+            st.rerun()
+
+        if provider == "openai":
+            api_key = st.text_input("OpenAI API Key", value=config.LLM_CONFIG.openai_api_key, type="password")
+            base_url = st.text_input("Base URL", value=config.LLM_CONFIG.openai_base_url)
+            model_name = st.text_input("Model Name", value=config.LLM_CONFIG.openai_model)
+            
+            # Update config instance (eagerly)
+            config.LLM_CONFIG.openai_api_key = api_key
+            config.LLM_CONFIG.openai_base_url = base_url
+            config.LLM_CONFIG.openai_model = model_name
+            config.LLM_CONFIG.provider = "openai"
+        else:
+            config.LLM_CONFIG.provider = "local"
+
     # Main Chat Area
     st.markdown('<p class="main-header">Consumer Complaint AI Analyst</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Ask questions about consumer complaints, trends, and financial products.</p>', unsafe_allow_html=True)
@@ -74,17 +111,16 @@ def main():
             st.rerun()
 
     # Initialize chatbot
-    pipeline = get_pipeline()
+    pipeline = get_pipeline(provider=provider)
 
     # Session state for chat history
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Display chat history
+    # Display chat history (Same as before)
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
-            # If there are source docs associated with this message (assistant only), show them in expander
             if message["role"] == "assistant" and "sources" in message:
                 with st.expander("🔍 View Context Sources"):
                     for i, doc in enumerate(message["sources"], 1):
@@ -103,46 +139,31 @@ def main():
         # Generate Assistant Response
         with st.chat_message("assistant"):
             if pipeline:
-                message_placeholder = st.empty()
-                full_response = ""
-                source_docs = []
-                
-                # Stream response
-                # We use the generator from run_stream
                 try:
-                    # Create a placeholder for sources that appears immediately
-                    sources_placeholder = st.empty()
+                    with st.spinner("Analyzing complaints..."):
+                        # Use synchronous run instead of run_stream
+                        result = pipeline.run(prompt, k=config.RETRIEVAL_CONFIG.k)
+                        full_response = result.get("answer", "")
+                        source_docs = result.get("source_documents", [])
+
+                    # Display retrieved sources in an expander
+                    if source_docs:
+                        with st.expander(f"📚 Retrieved {len(source_docs)} relevant documents", expanded=False):
+                            for i, doc in enumerate(source_docs, 1):
+                                st.markdown(f"**{i}. {doc.metadata.get('product', 'N/A')}** ({doc.metadata.get('company', 'N/A')})")
+                                st.caption(doc.page_content[:200] + "...")
+
+                    # Display the final answer
+                    st.markdown(full_response)
                     
-                    stream_generator = pipeline.run_stream(prompt, k=config.RETRIEVAL_CONFIG.k)
-                    
-                    for item in stream_generator:
-                        # Check if it's the source documents chunk
-                        if isinstance(item, dict) and "source_documents" in item:
-                            source_docs = item["source_documents"]
-                            # Display sources immediately
-                            with sources_placeholder.container():
-                                with st.expander(f"📚 Retrieved {len(source_docs)} relevant documents", expanded=False):
-                                    for i, doc in enumerate(source_docs, 1):
-                                        st.markdown(f"**{i}. {doc.metadata.get('product', 'N/A')}** ({doc.metadata.get('company', 'N/A')})")
-                                        st.caption(doc.page_content[:200] + "...")
-                        
-                        # Otherwise it's a string token
-                        elif isinstance(item, str):
-                            full_response += item
-                            message_placeholder.markdown(full_response + "▌")
-                            
-                    message_placeholder.markdown(full_response)
-                    
-                    # Add assistant response to history
+                    # Add to session state
                     st.session_state.messages.append({
                         "role": "assistant", 
                         "content": full_response,
                         "sources": source_docs
                     })
-                    
-                    # Rerun to clear the temporary sources_placeholder and use the history-based one
                     st.rerun()
-                    
+
                     
                 except Exception as e:
                     st.error(f"An error occurred: {e}")

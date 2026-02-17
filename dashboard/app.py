@@ -16,7 +16,7 @@ st.set_page_config(
     page_title="CFPB Complaint Insights",
     page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # Custom CSS for professional look
@@ -62,51 +62,16 @@ def get_pipeline():
         return pipeline
 
 def main():
-    # Sidebar for Business Insights
-    with st.sidebar:
-        st.title("Business Intelligence")
-        st.markdown("---")
-        
-        # Placeholder for dynamic insights
-        if "last_docs" in st.session_state and st.session_state.last_docs:
-            st.subheader("Current Context Analysis")
-            
-            # Extract metadata from retrieved docs
-            docs = st.session_state.last_docs
-            products = [d.metadata.get("product", "Unknown") for d in docs]
-            companies = [d.metadata.get("company", "Unknown") for d in docs]
-            
-            # 1. Product Focus
-            df_prod = pd.DataFrame(products, columns=["Product"])
-            top_prod = df_prod["Product"].mode()[0] if not df_prod.empty else "N/A"
-            
-            st.markdown(f"""
-            <div class="metric-card">
-                <small>Dominant Product Category</small>
-                <h3>{top_prod}</h3>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # 2. Key Companies
-            st.markdown("#### Relevant Companies")
-            st.dataframe(pd.Series(companies).value_counts().reset_index().rename(columns={"index": "Company", 0: "Count"}), hide_index=True)
-            
-            st.markdown("""
-            <div class="insight-box">
-            <b>Analyst Note:</b><br>
-            These metrics reflect the complaints most relevant to your current query.
-            </div>
-            """, unsafe_allow_html=True)
-            
-        else:
-            st.info("Start chatting to generate business insights based on retrieved context.")
-        
-        st.markdown("---")
-        st.caption("Powered by FLAN-T5 Mini & RAG")
-
     # Main Chat Area
     st.markdown('<p class="main-header">Consumer Complaint AI Analyst</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Ask questions about consumer complaints, trends, and financial products.</p>', unsafe_allow_html=True)
+
+    # Clean History Button
+    col1, col2 = st.columns([6, 1])
+    with col2:
+        if st.button("Clear Chat", help="Clear chat history"):
+            st.session_state.messages = []
+            st.rerun()
 
     # Initialize chatbot
     pipeline = get_pipeline()
@@ -121,11 +86,12 @@ def main():
             st.markdown(message["content"])
             # If there are source docs associated with this message (assistant only), show them in expander
             if message["role"] == "assistant" and "sources" in message:
-                with st.expander("View Source Documents"):
+                with st.expander("🔍 View Context Sources"):
                     for i, doc in enumerate(message["sources"], 1):
-                        st.markdown(f"**{i}. {doc.metadata.get('product', 'N/A')} - {doc.metadata.get('company', 'N/A')}**")
-                        st.caption(f"ID: {doc.metadata.get('complaint_id', 'N/A')}")
-                        st.text(doc.page_content[:300] + "...")
+                        st.markdown(f"**Source {i}: {doc.metadata.get('product', 'N/A')}**")
+                        st.markdown(f"> {doc.page_content.strip()}")
+                        st.caption(f"Company: {doc.metadata.get('company', 'N/A')} | ID: {doc.metadata.get('complaint_id', 'N/A')}")
+                        st.markdown("---")
 
     # User Input
     if prompt := st.chat_input("Ex: 'What are the common complaints about student loans?'"):
@@ -144,14 +110,22 @@ def main():
                 # Stream response
                 # We use the generator from run_stream
                 try:
+                    # Create a placeholder for sources that appears immediately
+                    sources_placeholder = st.empty()
+                    
                     stream_generator = pipeline.run_stream(prompt, k=config.RETRIEVAL_CONFIG.k)
                     
                     for item in stream_generator:
                         # Check if it's the source documents chunk
                         if isinstance(item, dict) and "source_documents" in item:
                             source_docs = item["source_documents"]
-                            # Update session state for sidebar insights immediately
-                            st.session_state.last_docs = source_docs
+                            # Display sources immediately
+                            with sources_placeholder.container():
+                                with st.expander(f"📚 Retrieved {len(source_docs)} relevant documents", expanded=False):
+                                    for i, doc in enumerate(source_docs, 1):
+                                        st.markdown(f"**{i}. {doc.metadata.get('product', 'N/A')}** ({doc.metadata.get('company', 'N/A')})")
+                                        st.caption(doc.page_content[:200] + "...")
+                        
                         # Otherwise it's a string token
                         elif isinstance(item, str):
                             full_response += item
@@ -166,9 +140,9 @@ def main():
                         "sources": source_docs
                     })
                     
-                    # Force rerun to update sidebar with new insights if needed
-                    # (Streamlit sometimes lags on sidebar updates from inside callbacks)
+                    # Rerun to clear the temporary sources_placeholder and use the history-based one
                     st.rerun()
+                    
                     
                 except Exception as e:
                     st.error(f"An error occurred: {e}")

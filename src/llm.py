@@ -60,7 +60,13 @@ def get_llm(
 
 # T5 expects a direct instruction. No need for complex chat tags.
 
-RAG_PROMPT_TEMPLATE = """You are a helpful financial assistant. Answer the question using ONLY the following context. If you cannot answer using the context, say "I don't have enough information".
+RAG_PROMPT_TEMPLATE = """You are a helpful financial assistant. Answer the question using ONLY the following context.
+
+Guidelines:
+1. Use ONLY the provided context to answer the question.
+2. If the answer is not in the context, say "I don't have enough information to answer this based on the available complaints."
+3. Maintain a helpful and professional tone.
+4. If multiple pieces of information are relevant, summarize them clearly.
 
 Context:
 {context}

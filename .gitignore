@@ -7,3 +7,4 @@ models/
 vector_store/
 .pytest_cache
 .coverage
+.env

@@ -102,9 +102,6 @@ rag-complaint-chatbot/
 - **Automated CI**: GitHub Actions workflow with pytest integration
 - **Quality Assurance**: Validates data integrity, prompt formatting, and end-to-end pipeline flow
 
-## Demo
-*[GIF or link to dashboard will be provided here]*
-
 ## Technical Details
 - **Data**: CFPB Consumer Complaint Database. We filter for 5 target products: Credit cards, Personal loans, BNPL, Savings accounts, and Money transfers.
 - **Preprocessing**: Robust cleaning pipeline using regex for PII removal, date normalization, and text deduplication.
